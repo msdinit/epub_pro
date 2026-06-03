@@ -1,4 +1,5 @@
 import 'dart:convert' as convert;
+import '../utils/url_utils.dart';
 import '../ref_entities/epub_book_ref.dart';
 import '../ref_entities/epub_chapter_ref.dart';
 import '../ref_entities/epub_text_content_file_ref.dart';
@@ -172,7 +173,7 @@ class ChapterReader {
       anchor =
           navPoint.content!.source!.substring(contentSourceAnchorCharIndex + 1);
     }
-    contentFileName = Uri.decodeFull(contentFileName!);
+    contentFileName = UrlUtils.maybeDecode(contentFileName!);
 
     // Check if we've already processed this base file (ignore anchors for duplicate detection)
     if (seenContentFiles.contains(contentFileName)) {
@@ -277,7 +278,7 @@ class ChapterReader {
         anchor = navigationPoint.content!.source!
             .substring(contentSourceAnchorCharIndex + 1);
       }
-      contentFileName = Uri.decodeFull(contentFileName!);
+      contentFileName = UrlUtils.maybeDecode(contentFileName!);
       EpubTextContentFileRef? htmlContentFileRef;
       if (!bookRef.content!.html.containsKey(contentFileName)) {
         throw Exception(
