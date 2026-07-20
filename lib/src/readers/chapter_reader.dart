@@ -172,19 +172,23 @@ class ChapterReader {
       anchor =
           navPoint.content!.source!.substring(contentSourceAnchorCharIndex + 1);
     }
-    contentFileName = Uri.decodeFull(contentFileName!);
+    final navigationContentFileName = contentFileName!;
+    contentFileName = _resolveContentFileName(
+      bookRef,
+      navigationContentFileName,
+    );
+
+    if (contentFileName == null) {
+      throw Exception(
+        'Incorrect EPUB manifest: item with href = "$navigationContentFileName" is missing.',
+      );
+    }
 
     // Check if we've already processed this base file (ignore anchors for duplicate detection)
     if (seenContentFiles.contains(contentFileName)) {
       return null;
     }
     seenContentFiles.add(contentFileName);
-
-    if (!bookRef.content!.html.containsKey(contentFileName)) {
-      throw Exception(
-        'Incorrect EPUB manifest: item with href = "$contentFileName" is missing.',
-      );
-    }
 
     final htmlContentFileRef = bookRef.content!.html[contentFileName];
     handledSpineItems.add(contentFileName);
@@ -277,11 +281,15 @@ class ChapterReader {
         anchor = navigationPoint.content!.source!
             .substring(contentSourceAnchorCharIndex + 1);
       }
-      contentFileName = Uri.decodeFull(contentFileName!);
+      final navigationContentFileName = contentFileName!;
+      contentFileName = _resolveContentFileName(
+        bookRef,
+        navigationContentFileName,
+      );
       EpubTextContentFileRef? htmlContentFileRef;
-      if (!bookRef.content!.html.containsKey(contentFileName)) {
+      if (contentFileName == null) {
         throw Exception(
-          'Incorrect EPUB manifest: item with href = "$contentFileName" is missing.',
+          'Incorrect EPUB manifest: item with href = "$navigationContentFileName" is missing.',
         );
       }
 
@@ -305,5 +313,36 @@ class ChapterReader {
     }
 
     return result;
+  }
+
+  /// Resolves navigation paths against the manifest while preserving its key.
+  ///
+  /// Some EPUBs percent-encode paths in the manifest/navigation, while archive
+  /// entries are decoded. Comparing decoded paths works around that mismatch,
+  /// but returning the original manifest key keeps content-map lookups valid.
+  static String? _resolveContentFileName(
+      EpubBookRef bookRef, String navigationContentFileName) {
+    final html = bookRef.content!.html;
+    if (html.containsKey(navigationContentFileName)) {
+      return navigationContentFileName;
+    }
+
+    String decodedNavigationContentFileName;
+    try {
+      decodedNavigationContentFileName = Uri.decodeFull(
+        navigationContentFileName,
+      );
+    } on FormatException {
+      return null;
+    }
+
+    return html.keys.firstWhereOrNull((manifestContentFileName) {
+      try {
+        return Uri.decodeFull(manifestContentFileName) ==
+            decodedNavigationContentFileName;
+      } on FormatException {
+        return false;
+      }
+    });
   }
 }
